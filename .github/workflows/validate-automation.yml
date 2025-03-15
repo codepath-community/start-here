@@ -1,0 +1,46 @@
+name: Workflow Integrity Check
+
+on:
+  pull_request:
+
+jobs:
+  check-invite-modification:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Checkout main branch
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          path: main-branch
+
+      - name: Check for changes in invite.yml
+        id: check-changes
+        run: |
+          echo "Starting diff check..."
+          diff .github/workflows/invite.yml main-branch/.github/workflows/invite.yml
+          DIFF_STATUS=$?
+          echo "Diff status: $DIFF_STATUS"
+          if [[ $DIFF_STATUS -ne 0 ]]; then
+            echo "Changes detected."
+            echo "CHANGED=true" >> $GITHUB_ENV
+          else
+            echo "No changes detected."
+            echo "CHANGED=false" >> $GITHUB_ENV
+          fi
+          echo "Diff check completed."
+
+      - name: Fail if invite.yml was changed
+        if: env.CHANGED == 'true'
+        run: |
+          echo "invite.yml workflow was modified. Changes to this file are not allowed."
+          exit 1
+
+      - name: Pass if invite.yml was not changed
+        if: env.CHANGED == 'false'
+        run: |
+          echo "invite.yml workflow was not modified. Validation passed."
